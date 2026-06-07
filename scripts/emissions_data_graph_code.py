@@ -1,6 +1,6 @@
 """Figure 1 — emissions comparison.
 
-Visual grammar (see Hetzel audit, May 2026):
+Visual grammar:
 - Marker shape encodes transport class (square = aviation, circle = surface).
 - Whisker style encodes uncertainty source class (E = scenario envelope,
   L = literature bounds, F = +/-5 percent efficiency band) so the three
