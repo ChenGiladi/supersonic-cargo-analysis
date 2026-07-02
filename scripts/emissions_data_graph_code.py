@@ -22,11 +22,11 @@ import numpy as np
 # --- TYPOGRAPHY ---
 matplotlib.rcParams['font.family'] = ['DejaVu Sans', 'sans-serif']
 matplotlib.rcParams.update({
-    'font.size': 13,
-    'xtick.labelsize': 12,
-    'ytick.labelsize': 12,
-    'axes.labelsize': 13,
-    'legend.fontsize': 10,
+    'font.size': 18,
+    'xtick.labelsize': 16,
+    'ytick.labelsize': 16,
+    'axes.labelsize': 17,
+    'legend.fontsize': 14,
 })
 
 # --- DATA LOADING ---
@@ -101,7 +101,7 @@ WHISKER_COL  = "#2C3E50"
 # --- FIGURE LAYOUT ---
 # No figure-level title: takeaway, assumptions, and the cross-mode-encoding
 # caveat belong in the LaTeX caption (research-figure convention).
-fig, axes = plt.subplots(1, 3, figsize=(16, 6.0), sharey=False)
+fig, axes = plt.subplots(1, 3, figsize=(12.5, 5.2), sharey=False)
 
 panel_letters = ['(a)', '(b)', '(c)']
 # Aviation/Surface group separator sits between index 1 (Subsonic) and 2 (Trucking)
@@ -155,16 +155,17 @@ for idx, (cat, _, _, _, panel_title) in enumerate(categories):
 
         # Value label
         ax.text(i, hi * 1.6, fmt_value(v), ha='center', va='bottom',
-                fontsize=10.5, color="#1B2631")
+                fontsize=14, color="#1B2631")
 
     ax.set_title(f"{panel_letters[idx]} {panel_title}",
-                 fontsize=14, fontweight='bold', pad=10)
+                 fontsize=18, fontweight='bold', pad=10)
     if idx == 0:
-        ax.set_ylabel(r"Mission total (kg, log$_{10}$; independent per panel)",
-                      fontsize=12.5)
+        # Wrapped to two lines so the 16 pt label fits the panel height.
+        ax.set_ylabel("Mission total (kg, log$_{10}$;\nindependent per panel)",
+                      fontsize=16)
 
     ax.set_xticks(range(len(modes)))
-    ax.set_xticklabels(modes, rotation=18, ha='right', fontsize=11.5)
+    ax.set_xticklabels(modes, rotation=18, ha='right', fontsize=15)
 
     # Clean spines + light grid
     ax.spines['top'].set_visible(False)
@@ -202,17 +203,20 @@ range_handles = [
 ]
 
 # Reserve a strip at the bottom of the figure for the two sub-legends
-plt.tight_layout(rect=[0, 0.12, 1, 1])
+# (stacked as two centered rows so the enlarged 14 pt entries cannot collide).
+plt.tight_layout(rect=[0, 0.20, 1, 1])
 
 mode_leg = fig.legend(handles=mode_handles, loc='lower center',
-                      bbox_to_anchor=(0.27, 0.0), ncol=2, frameon=False,
-                      fontsize=10.5, title='Mode class', title_fontsize=11,
-                      borderpad=0.4, handletextpad=0.6, columnspacing=1.6)
+                      bbox_to_anchor=(0.5, 0.09), ncol=3, frameon=False,
+                      fontsize=14, title='Mode class:', title_fontsize=15,
+                      borderpad=0.2, handletextpad=0.5, columnspacing=1.2)
+mode_leg._legend_box.align = "center"
 fig.add_artist(mode_leg)
-fig.legend(handles=range_handles, loc='lower center',
-           bbox_to_anchor=(0.71, 0.0), ncol=3, frameon=False,
-           fontsize=10.5, title='Interval type', title_fontsize=11,
-           borderpad=0.4, handletextpad=0.6, columnspacing=1.6)
+range_leg = fig.legend(handles=range_handles, loc='lower center',
+                       bbox_to_anchor=(0.5, 0.0), ncol=3, frameon=False,
+                       fontsize=14, title='Interval type:', title_fontsize=15,
+                       borderpad=0.2, handletextpad=0.5, columnspacing=1.2)
+range_leg._legend_box.align = "center"
 # Vector PDF is the primary output (pdflatex preferred); PNG retained
 # for previews/external use.
 pdf_path = BASE_PATH / 'emissions_comparison.pdf'
@@ -220,3 +224,43 @@ png_path = BASE_PATH / 'emissions_comparison.png'
 plt.savefig(pdf_path, bbox_inches='tight')
 plt.savefig(png_path, dpi=600, bbox_inches='tight')
 print(f"Figure saved (vector + raster): {pdf_path}  and  {png_path}")
+
+
+# ---------------------------------------------------------------------------
+# Fixed-mission-overhead benchmark (Reviewer C5, revision round 1)
+# Cross-check of the 120 kg CO2 per design-payload-ton subsonic fixed overhead
+# against per-type block-fuel-versus-distance data transcribed from the
+# EMEP/EEA Air Pollutant Emission Inventory Guidebook 2023, Chapter 1.A.3.a
+# (Aviation), Annex 1 "master emissions calculator" (v1.5, 18 September 2024;
+# (c) EUROCONTROL, year-2022 estimations). Block fuel = ICAO LTO-cycle fuel +
+# climb/cruise/descent (CCD) fuel at the tabulated great-circle stage lengths.
+# Print-only: no effect on the figure or CSV outputs above.
+# ---------------------------------------------------------------------------
+def _overhead_benchmark():
+    import numpy as np
+    NM_TO_KM = 1.852
+    CO2_PER_KG_FUEL = 3.16          # manuscript convention (source file: 3.15)
+    dist_nm = np.array([125.0, 200.0, 250.0, 500.0, 750.0])
+    # type: (LTO fuel kg, CCD fuel kg at dist_nm, freighter design payload t)
+    types = {
+        'B777F-class (B77L-A)':    (2906.8, [2731.7, 3997.8, 4958.3, 8606.0, 12623.6], 107.0),
+        'B767-300F-class (B763-A)':(1729.9, [1821.0, 2634.8, 3084.6, 5547.7,  8137.1],  57.0),
+        'B747-400F-class (B744-A)':(3908.4, [3368.6, 4958.9, 5936.4, 10582.8, 15328.3], 113.0),
+    }
+    print("\n=== Fixed-overhead benchmark vs EMEP/EEA per-type block fuel (Reviewer C5) ===")
+    per_ton = []
+    for name, (lto, ccd, payload_t) in types.items():
+        d_km = dist_nm * NM_TO_KM
+        block = lto + np.asarray(ccd)
+        slope, fixed = np.polyfit(d_km, block, 1)
+        r = np.corrcoef(d_km, block)[0, 1]
+        fixed_co2 = fixed * CO2_PER_KG_FUEL
+        ov = fixed_co2 / payload_t
+        per_ton.append(ov)
+        print(f"{name}: fixed fuel {fixed:,.0f} kg, fixed CO2 {fixed_co2:,.0f} kg, "
+              f"payload {payload_t:.0f} t -> {ov:.1f} kg CO2/design-payload ton (R^2={r*r:.4f})")
+    print(f"Implied overhead bracket: {min(per_ton):.0f}--{max(per_ton):.0f} kg CO2/ton "
+          f"vs manuscript assumption 120 kg "
+          f"({'contains' if min(per_ton) <= 120.0 <= max(per_ton) else 'does NOT contain'} 120 kg)")
+
+_overhead_benchmark()

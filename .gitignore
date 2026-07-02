@@ -13,3 +13,6 @@ Thumbs.db
 *.png
 *.pdf
 !docs/*.pdf
+
+# Local snapshot archive (auto_backup.py)
+archive/

@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Larger base fonts so the 2x2 panel labels stay legible at text-column width.
-plt.rcParams.update({'font.size': 14, 'axes.titlesize': 15, 'axes.labelsize': 14,
-                     'xtick.labelsize': 12, 'ytick.labelsize': 12, 'legend.fontsize': 11})
+plt.rcParams.update({'font.size': 18, 'axes.titlesize': 19, 'axes.labelsize': 18,
+                     'xtick.labelsize': 16, 'ytick.labelsize': 16, 'legend.fontsize': 15})
 
 np.random.seed(42)
 
@@ -155,6 +155,73 @@ print(f"Subsonic DOC    5th/50th/95th: "
       f"{np.percentile(sub_doc, 95):.1f}")
 print(f"\nCO2 sensitivity (tornado): {dict(zip(factors, [f'{w:.2f}' for w in weights]))}")
 
+# ---- Monte Carlo variance decomposition (print-only; reviewer B2) ----
+# Attributes the MC spread of the sampled outputs to the input draws using
+# (i) squared Spearman rank correlations, normalized to sum to one, and
+# (ii) a binned first-order Sobol' cross-check on the same 10,000 draws.
+# No additional sampling: uses the arrays drawn above, so figures/CSVs are
+# unchanged.
+
+def _rank(x):
+    """Ranks via double argsort (Spearman rank transform)."""
+    return np.argsort(np.argsort(x))
+
+
+def spearman_rho(x, y):
+    """Spearman rank correlation via double-argsort ranks + np.corrcoef."""
+    return np.corrcoef(_rank(x), _rank(y))[0, 1]
+
+
+def sobol_first_order(x, y, n_bins=50):
+    """Binned first-order Sobol' index: Var(E[Y|X_i]) / Var(Y) over
+    n_bins quantile bins of the input draws."""
+    edges = np.quantile(x, np.linspace(0, 1, n_bins + 1))
+    idx_bin = np.clip(np.searchsorted(edges, x, side='right') - 1, 0, n_bins - 1)
+    var_y = np.var(y)
+    cond_means = np.array([y[idx_bin == b].mean() for b in range(n_bins)
+                           if np.any(idx_bin == b)])
+    counts = np.array([np.sum(idx_bin == b) for b in range(n_bins)
+                       if np.any(idx_bin == b)])
+    grand = y.mean()
+    return float(np.sum(counts * (cond_means - grand) ** 2) / (len(y) * var_y))
+
+
+mach_v = mach_s[valid]
+ld_v = ld_s[valid]
+sfc_v = sfc_s[valid]
+
+print("\n=== MC variance decomposition (Spearman rho^2, normalized) ===")
+co2_inputs = {'SFC': sfc_v, 'L/D': ld_v, 'Mach': mach_v}
+co2_rho2 = {k: spearman_rho(v, sup_co2) ** 2 for k, v in co2_inputs.items()}
+co2_raw_sum = sum(co2_rho2.values())
+print(f"Supersonic CO2 intensity (raw rho^2 sum = {co2_raw_sum:.2f}):")
+for k in co2_inputs:
+    print(f"  {k:5s}: share = {co2_rho2[k] / co2_raw_sum:.2f} "
+          f"(rho = {np.sign(spearman_rho(co2_inputs[k], sup_co2)) * np.sqrt(co2_rho2[k]):+.3f})")
+
+doc_inputs = {'Load factor': lf_v, 'Fuel price': fp_v,
+              'SFC': sfc_v, 'L/D': ld_v, 'Mach': mach_v}
+doc_rho2 = {k: spearman_rho(v, sup_doc) ** 2 for k, v in doc_inputs.items()}
+doc_raw_sum = sum(doc_rho2.values())
+print(f"Supersonic DOC intensity (raw rho^2 sum = {doc_raw_sum:.2f}):")
+for k in doc_inputs:
+    print(f"  {k:11s}: share = {doc_rho2[k] / doc_raw_sum:.3f}")
+
+print("\n=== First-order Sobol' cross-check (50 quantile bins) ===")
+for k, v in co2_inputs.items():
+    print(f"  {k:5s}: S1 = {sobol_first_order(v, sup_co2):.2f}")
+
+# Low-tail characterization: the most favorable 5% of supersonic CO2 draws
+tail_thresh = np.nanpercentile(sup_co2, 5)
+tail = sup_co2 <= tail_thresh
+joint = (sfc_v[tail] < 25) & (ld_v[tail] > 7) & (mach_v[tail] > 1.8)
+print("\n=== Low-tail block (bottom 5% of supersonic CO2 draws) ===")
+print(f"  n = {tail.sum()}, CO2 <= {tail_thresh:.3f} kg/ton-km")
+print(f"  mean SFC  = {sfc_v[tail].mean():.1f} mg/(N s)  (mode 27.5)")
+print(f"  mean L/D  = {ld_v[tail].mean():.2f}            (mode 7.0)")
+print(f"  mean Mach = {mach_v[tail].mean():.2f}           (mode 1.8)")
+print(f"  fraction with (SFC<25) & (L/D>7) & (Mach>1.8): {joint.mean():.2f}")
+
 # ---- Check canonical points ----
 for label, m, l, s in [("Conservative", 1.8, 6.0, 35),
                         ("Baseline", 1.8, 7.0, 27.5),
@@ -207,40 +274,46 @@ print(f"\nEmissions CSV written to {csv_path}")
 
 # ---- Plot ----
 SUB_C, SUP_C = "#0072B2", "#E69F00"  # Okabe-Ito colourblind-safe pair
-fig, axes = plt.subplots(1, 3, figsize=(16, 5.8))
+fig, axes = plt.subplots(1, 3, figsize=(12.5, 5.0))
 
 # (a) CO2 distributions
 ax = axes[0]
-ax.hist(sub_co2, bins=50, alpha=0.75, label="Subsonic", color=SUB_C)
-ax.hist(sup_co2, bins=50, alpha=0.65, label="Supersonic", color=SUP_C)
+cnt_a1, _, _ = ax.hist(sub_co2, bins=50, alpha=0.75, label="Subsonic", color=SUB_C)
+cnt_a2, _, _ = ax.hist(sup_co2, bins=50, alpha=0.65, label="Supersonic", color=SUP_C)
 # Convention (consistent with panel b): dotted grey = subsonic reference.
 # The conservative bound uses a DISTINCT dash-dot red so no style means two things.
 ax.axvline(0.545, color='#444444', ls=':', lw=1.3, label="Subsonic baseline (0.545)")
 ax.axvline(1.25, color='#b2182b', ls='-.', lw=1.6, label="Conservative bound (1.25)")
 ax.set_xlabel("CO$_2$ intensity (kg/ton-km)")
 ax.set_ylabel("Count")
-ax.set_title("(a) CO$_2$ intensity distribution", fontweight='bold', loc='left')
-ax.legend(fontsize=11)
+# Two-line title so the enlarged 19 pt titles cannot collide across panels;
+# headroom above the histograms keeps the enlarged legend clear of the bars.
+ax.set_title("(a) CO$_2$ intensity\ndistribution", fontweight='bold', loc='left')
+ax.set_ylim(0, max(cnt_a1.max(), cnt_a2.max()) * 1.75)
+ax.legend(fontsize=13, loc='upper right', borderpad=0.25, labelspacing=0.3,
+          handlelength=1.0, handletextpad=0.4, framealpha=0.9)
 ax.grid(alpha=0.2, color='#cccccc')
 
 # (b) DOC distributions (with median markers for parity with panel a)
 ax = axes[1]
-ax.hist(sub_doc, bins=50, alpha=0.75, label="Subsonic", color=SUB_C)
-ax.hist(sup_doc, bins=50, alpha=0.65, label="Supersonic", color=SUP_C)
+cnt_b1, _, _ = ax.hist(sub_doc, bins=50, alpha=0.75, label="Subsonic", color=SUB_C)
+cnt_b2, _, _ = ax.hist(sup_doc, bins=50, alpha=0.65, label="Supersonic", color=SUP_C)
 ax.axvline(np.nanmedian(sub_doc), color='#444444', ls=':', lw=1.3, label="Subsonic median")
 ax.axvline(np.nanmedian(sup_doc), color='black', ls='--', lw=1.3, label="Supersonic median")
 ax.set_xlabel("DOC intensity ($/ton-km)")
 ax.set_ylabel("Count")
-ax.set_title("(b) DOC intensity distribution", fontweight='bold', loc='left')
-ax.legend(fontsize=11)
+ax.set_title("(b) DOC intensity\ndistribution", fontweight='bold', loc='left')
+ax.set_ylim(0, max(cnt_b1.max(), cnt_b2.max()) * 1.75)
+ax.legend(fontsize=13, loc='upper right', borderpad=0.25, labelspacing=0.3,
+          handlelength=1.0, handletextpad=0.4, framealpha=0.9)
 ax.grid(alpha=0.2, color='#cccccc')
 
 # (c) Tornado sensitivity — sorted with the largest driver (SFC) on top
 ax = axes[2]
 order = np.argsort(weights)  # ascending: largest lands at the top in barh
 ax.barh([factors[i] for i in order], weights[order], color=SUP_C, alpha=0.8)  # match histogram fill
-ax.set_xlabel("Relative CO$_2$ sensitivity (normalised)")
-ax.set_title("(c) CO$_2$ sensitivity, supersonic", fontweight='bold', loc='left')
+ax.set_xlabel("Relative CO$_2$ sensitivity\n(normalised)")
+ax.set_title("(c) CO$_2$ sensitivity,\nsupersonic", fontweight='bold', loc='left')
 ax.set_xlim(0, max(weights) * 1.3)
 ax.grid(axis='x', alpha=0.2, color='#cccccc')
 
