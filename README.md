@@ -4,7 +4,7 @@ Reproducible analysis code for the manuscript:
 
 > **Environmental and Cost Analysis of Supersonic Cargo Transport: A Comparative Study with Subsonic Aircraft and Other Freight Modes**
 > Amir Avitan (Departments of Mechanical Engineering and Green Engineering) and Chen Giladi (Department of Mechanical Engineering), Sami Shamoon College of Engineering, Ashdod, Israel.
-> Submitted to *Energies* (MDPI).
+> Submitted to *Sustainability* (MDPI).
 
 This repository contains the Python scripts that regenerate **every quantitative result, figure, and table** in the paper: a screening-level techno-environmental and cost comparison of a first-generation supersonic freighter against subsonic air freight, trucking, rail, and maritime shipping, normalized to a one-ton functional unit.
 
