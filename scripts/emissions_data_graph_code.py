@@ -72,9 +72,10 @@ with emissions_path.open() as csvfile:
 
 
 def fmt_value(v):
-    """3 sig figs with thousands separators >=1000; adaptive precision below.
+    """3 sig figs; MDPI style uses thousands separators only for 5+ digit
+    numbers, so four-digit values are printed without a comma.
 
-    Examples: 1881 -> '1,880'; 817.5 -> '818'; 12.8 -> '12.8'; 3.88 -> '3.88';
+    Examples: 1881 -> '1880'; 817.5 -> '818'; 12.8 -> '12.8'; 3.88 -> '3.88';
     0.6 -> '0.6'; 0.33 -> '0.33'.
     """
     import math
@@ -84,7 +85,8 @@ def fmt_value(v):
         exp = math.floor(math.log10(v))
         factor = 10 ** (exp - 2)
         rounded = round(v / factor) * factor
-        return f"{rounded:,.0f}"
+        # MDPI: commas only for numbers with five or more digits.
+        return f"{rounded:,.0f}" if rounded >= 10000 else f"{rounded:.0f}"
     if v >= 100:
         return f"{v:.0f}"
     if v >= 10:

@@ -137,12 +137,13 @@ ax.axhline(vot_express[1], color='#E69F00', lw=0.8, ls='-', alpha=0.7)
 
 # Reference line at 1,500 km
 ax.axvline(1500, color='gray', ls=':', lw=1, alpha=0.7)
-ax.text(1560, 130, '1,500 km\nbaseline', fontsize=13, color='#333333',
+ax.text(1560, 130, '1500 km\nbaseline', fontsize=13, color='#333333',
         bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, pad=1.5))
 
 ax.set_yscale('log')
-# Plain currency labels (100 / 1,000 / 10,000) instead of 10^2/10^3 scientific notation
-ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y:,.0f}"))
+# Plain currency labels (100 / 1000 / 10,000) instead of 10^2/10^3 scientific notation.
+# MDPI: commas only for numbers with five or more digits, so 1000 has no comma.
+ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y:,.0f}" if y >= 10000 else f"{y:.0f}"))
 ax.set_xlabel('Stage length (km)', fontsize=16)
 ax.set_ylabel('Break-even VOT ($/ton-hour, log scale)', fontsize=16)
 ax.tick_params(axis='both', labelsize=14)
@@ -160,9 +161,9 @@ ax.grid(which='both', alpha=0.3)
 
 _halo = [pe.withStroke(linewidth=2.5, foreground='white')]
 
-# Annotate 1,500 km conservative VOT
+# Annotate 1500 km conservative VOT
 idx_1500 = np.argmin(np.abs(stage_lengths - 1500))
-ax.annotate(f'Conservative cargo: ${vot_conservative[idx_1500]:.0f}/ton-hour at 1,500 km',
+ax.annotate(f'Conservative cargo: ${vot_conservative[idx_1500]:.0f}/ton-hour at 1500 km',
             xy=(1500, vot_conservative[idx_1500]),
             xytext=(2100, vot_conservative[idx_1500] * 1.7),
             arrowprops=dict(arrowstyle='->', color='#D55E00', lw=1.6),

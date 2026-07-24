@@ -235,8 +235,11 @@ sup_h2o = (sup_co2_kg / CO2_per_fuel) * H2O_per_fuel
 sub_fuel_total = 818.0 / CO2_per_fuel
 sub_nox = sub_fuel_total * ei_nox_sub / 1000
 
-csv_path = (Path(__file__).resolve().parent.parent /
-            "figure_01_emissions_comparison" / "emissions_data.csv")
+# In the manuscript figure tree the CSV lives in the Figure 1 folder; in the
+# public repository all scripts and data sit side by side. Use whichever exists.
+_here = Path(__file__).resolve().parent
+_fig1_dir = _here.parent / "figure_01_emissions_comparison"
+csv_path = (_fig1_dir if _fig1_dir.is_dir() else _here) / "emissions_data.csv"
 with open(csv_path, 'w') as f:
     f.write("Mode,CO2_total_kg,CO2_min_kg,CO2_max_kg,"
             "NOx_total_kg,NOx_min_kg,NOx_max_kg,"

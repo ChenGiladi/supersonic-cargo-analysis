@@ -1,0 +1,6 @@
+Mode,CO2_total_kg,CO2_min_kg,CO2_max_kg,NOx_total_kg,NOx_min_kg,NOx_max_kg,Water_total_kg,Water_min_kg,Water_max_kg
+Supersonic,1881,783,2155,11.90,8.93,14.88,732,305,839
+Subsonic,817.5,776.6,858.4,3.88,2.23,5.00,318.2,302.3,334.1
+Trucking,120.0,96.0,144.0,0.60,0.40,0.80,46.7,37.4,56.0
+Shipping,15.0,12.0,18.0,0.33,0.24,0.47,5.8,4.7,7.0
+Rail,39.8,31.8,47.7,0.50,0.38,0.76,15.5,12.4,18.6
